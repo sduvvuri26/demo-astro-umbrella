@@ -42,16 +42,30 @@ jobs:
           echo "DAGs in umbrella repo:"
           ls -R dags || true
 
-      - name: Install Astro CLI
+      - name: Install Astro CLI and DAG-only deploy
         run: |
+          # Install Astro CLI
           curl -sSL https://install.astronomer.io | bash
-          echo "$HOME/.astro/bin" >> $GITHUB_PATH
 
-      - name: Astro login
-        run: |
-          astro version
-          astro login "$ASTRO_API_DOMAIN" --token "$ASTRO_API_TOKEN"
+          # Figure out where astro was installed
+          if [ -x "$HOME/.astro/bin/astro" ]; then
+            CLI="$HOME/.astro/bin/astro"
+          elif [ -x "/usr/local/bin/astro" ]; then
+            CLI="/usr/local/bin/astro"
+          else
+            echo "Astro CLI not found after install" >&2
+            ls -R "$HOME/.astro" || true
+            which astro || true
+            exit 1
+          fi
 
-      - name: DAG-only deploy via Astro CLI
-        run: |
-          astro deploy "$ASTRO_DEPLOYMENT_ID" --dags --force --wait 600
+          echo "Using Astro CLI at: $CLI"
+          $CLI version
+
+          # Login and DAG-only deploy
+          $CLI login "$ASTRO_API_DOMAIN" --token "$ASTRO_API_TOKEN"
+          $CLI deploy "$ASTRO_DEPLOYMENT_ID" --dags --force --wait 600
+        env:
+          ASTRO_API_TOKEN: ${{ secrets.ASTRO_API_TOKEN }}
+          ASTRO_API_DOMAIN: ${{ secrets.ASTRO_API_DOMAIN }}
+          ASTRO_DEPLOYMENT_ID: ${{ secrets.ASTRO_DEPLOYMENT_ID }}
