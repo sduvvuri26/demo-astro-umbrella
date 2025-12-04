@@ -1,16 +1,12 @@
 name: DAG-only deploy from umbrella repo
 
 on:
-  # Manual trigger for demo
   workflow_dispatch: {}
-
-  # You can also uncomment this to auto-deploy on push to main
-  # push:
-  #   branches:
-  #     - main
 
 env:
   ASTRO_API_TOKEN: ${{ secrets.ASTRO_API_TOKEN }}
+  ASTRO_API_DOMAIN: ${{ secrets.ASTRO_API_DOMAIN }}
+  ASTRO_DEPLOYMENT_ID: ${{ secrets.ASTRO_DEPLOYMENT_ID }}
 
 jobs:
   deploy-dags:
@@ -35,12 +31,10 @@ jobs:
 
       - name: Copy DAGs from A & B into umbrella dags/
         run: |
-          # Copy DAGs from repo-a/dags
           if [ -d "repo-a/dags" ]; then
             cp repo-a/dags/*.py dags/ || true
           fi
 
-          # Copy DAGs from repo-b/dags
           if [ -d "repo-b/dags" ]; then
             cp repo-b/dags/*.py dags/ || true
           fi
@@ -48,12 +42,16 @@ jobs:
           echo "DAGs in umbrella repo:"
           ls -R dags || true
 
-      - name: Deploy DAGs to Astro (DAG-only)
-        uses: astronomer/deploy-action@v0.11.0
-        with:
-          action: deploy
-          deployment-id: ${{ secrets.ASTRO_DEPLOYMENT_ID }}
-          root-folder: .
-          deploy-type: dag-only
-          parse: true
-          wait-time: 10m
+      - name: Install Astro CLI
+        run: |
+          curl -sSL https://install.astronomer.io | bash
+          echo "$HOME/.astro" >> $GITHUB_PATH
+
+      - name: Astro login
+        run: |
+          astro login "$ASTRO_API_DOMAIN" --token "$ASTRO_API_TOKEN"
+
+      - name: DAG-only deploy via Astro CLI
+        run: |
+          # Run dag-only deploy against the deployment ID
+          astro deploy "$ASTRO_DEPLOYMENT_ID" --dags --force --wait 600
