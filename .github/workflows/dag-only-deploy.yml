@@ -1,0 +1,59 @@
+name: DAG-only deploy from umbrella repo
+
+on:
+  # Manual trigger for demo
+  workflow_dispatch: {}
+
+  # You can also uncomment this to auto-deploy on push to main
+  # push:
+  #   branches:
+  #     - main
+
+env:
+  ASTRO_API_TOKEN: ${{ secrets.ASTRO_API_TOKEN }}
+
+jobs:
+  deploy-dags:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout umbrella repo (Astro project)
+        uses: actions/checkout@v4
+
+      - name: Clean existing dags directory
+        run: |
+          rm -rf dags
+          mkdir -p dags
+
+      - name: Clone demo-repo-a (DAGs 1 & 2)
+        run: |
+          git clone https://github.com/${{ github.repository_owner }}/demo-repo-a.git repo-a
+
+      - name: Clone demo-repo-b (DAGs 3 & 4)
+        run: |
+          git clone https://github.com/${{ github.repository_owner }}/demo-repo-b.git repo-b
+
+      - name: Copy DAGs from A & B into umbrella dags/
+        run: |
+          # Copy DAGs from repo-a/dags
+          if [ -d "repo-a/dags" ]; then
+            cp repo-a/dags/*.py dags/ || true
+          fi
+
+          # Copy DAGs from repo-b/dags
+          if [ -d "repo-b/dags" ]; then
+            cp repo-b/dags/*.py dags/ || true
+          fi
+
+          echo "DAGs in umbrella repo:"
+          ls -R dags || true
+
+      - name: Deploy DAGs to Astro (DAG-only)
+        uses: astronomer/deploy-action@v0.11.0
+        with:
+          action: deploy
+          deployment-id: ${{ secrets.ASTRO_DEPLOYMENT_ID }}
+          root-folder: .
+          deploy-type: dag-only
+          parse: true
+          wait-time: 10m
