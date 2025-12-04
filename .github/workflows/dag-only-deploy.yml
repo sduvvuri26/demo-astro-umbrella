@@ -45,13 +45,13 @@ jobs:
       - name: Install Astro CLI
         run: |
           curl -sSL https://install.astronomer.io | bash
-          echo "$HOME/.astro" >> $GITHUB_PATH
+          echo "$HOME/.astro/bin" >> $GITHUB_PATH
 
       - name: Astro login
         run: |
+          astro version
           astro login "$ASTRO_API_DOMAIN" --token "$ASTRO_API_TOKEN"
 
       - name: DAG-only deploy via Astro CLI
         run: |
-          # Run dag-only deploy against the deployment ID
           astro deploy "$ASTRO_DEPLOYMENT_ID" --dags --force --wait 600
