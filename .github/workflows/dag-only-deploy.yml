@@ -2,6 +2,10 @@ name: DAG-only deploy from umbrella repo
 
 on:
   workflow_dispatch: {}
+  
+  # Optional: Auto-sync every 30 minutes (remove comment to enable)
+  # schedule:
+  #   - cron: '*/30 * * * *'
 
 env:
   ASTRO_API_TOKEN: ${{ secrets.ASTRO_API_TOKEN }}
@@ -19,7 +23,7 @@ jobs:
       - name: Clean existing dags directory
         run: |
           rm -rf dags
-          mkdir -p dags
+          mkdir -p dags/team-a dags/team-b
 
       - name: Clone demo-repo-a (DAGs 1 & 2)
         run: |
@@ -31,15 +35,24 @@ jobs:
 
       - name: Copy DAGs from A & B into umbrella dags/
         run: |
+          # Copy repo-a DAGs to team-a folder
           if [ -d "repo-a/dags" ]; then
-            cp repo-a/dags/*.py dags/ || true
+            cp -r repo-a/dags/* dags/team-a/ || true
+            echo "✅ Copied DAGs from repo-a to dags/team-a/"
+          else
+            echo "⚠️  No dags folder found in repo-a"
           fi
 
+          # Copy repo-b DAGs to team-b folder
           if [ -d "repo-b/dags" ]; then
-            cp repo-b/dags/*.py dags/ || true
+            cp -r repo-b/dags/* dags/team-b/ || true
+            echo "✅ Copied DAGs from repo-b to dags/team-b/"
+          else
+            echo "⚠️  No dags folder found in repo-b"
           fi
 
-          echo "DAGs in umbrella repo:"
+          echo ""
+          echo "📦 Final DAG structure in umbrella repo:"
           ls -R dags || true
 
       - name: Install Astro CLI and DAG-only deploy
@@ -69,3 +82,14 @@ jobs:
           ASTRO_API_TOKEN: ${{ secrets.ASTRO_API_TOKEN }}
           ASTRO_API_DOMAIN: ${{ secrets.ASTRO_API_DOMAIN }}
           ASTRO_DEPLOYMENT_ID: ${{ secrets.ASTRO_DEPLOYMENT_ID }}
+
+      - name: Deployment Summary
+        if: always()
+        run: |
+          echo ""
+          echo "🚀 Deployment Status:"
+          echo "   Deployment ID: $ASTRO_DEPLOYMENT_ID"
+          echo "   Domain: $ASTRO_API_DOMAIN"
+          echo ""
+          echo "📂 Deployed DAGs:"
+          find dags -name "*.py" -type f || true
